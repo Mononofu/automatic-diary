@@ -1,11 +1,12 @@
 application: automatic-diary
-version: 1
+version: 2
 runtime: go
 api_version: go1
 
 handlers:
 - url: /assets
   static_dir: static
-  
+
 - url: /.*
   script: _go_app
+  auth_fail_action: redirect
