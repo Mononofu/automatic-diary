@@ -46,7 +46,8 @@ const entryTemplateHTML = `
 <div class="entry">
     <h3>{{.Date.Format "Monday, 2. Jan"}}</h3>
     <p>{{.Content}}</p>
-    <span><a href="/append?key={{.Key | urlquery }}">Append</a></span>
+    <span><i>Written on {{.CreationTime.Format "Monday, 2. Jan - 15:04"}}</i></span>
+    <span class="append_link"><a href="/append?key={{.Key | urlquery }}">Append</a></span>
 </div>
 `
 
@@ -64,9 +65,10 @@ const entryAppendTemplateHTML = `
 `
 
 type EntryContent struct {
-	Date    time.Time
-	Content string
-	Key     string
+	Date         time.Time
+	CreationTime time.Time
+	Content      string
+	Key          string
 }
 
 var baseTemplate = template.Must(template.New("body").Parse(baseTemplateHTML))

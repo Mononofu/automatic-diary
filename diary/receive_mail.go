@@ -52,9 +52,10 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 
 	c.Infof("Received mail from %s: %s", m.From, body)
 	e := DiaryEntry{
-		Author:  "Julian",
-		Content: []byte(body),
-		Date:    date,
+		Author:       "Julian",
+		Content:      []byte(body),
+		Date:         date,
+		CreationTime: time.Now(),
 	}
 
 	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)

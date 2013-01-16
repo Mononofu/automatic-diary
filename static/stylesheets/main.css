@@ -44,7 +44,7 @@ body {
   position: relative;
 }
 
-.entry span {
+.append_link {
   right: 0px;
   position: absolute;
 }
