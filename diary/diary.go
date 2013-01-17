@@ -61,7 +61,7 @@ func showEntries(w http.ResponseWriter, r *http.Request) {
 		entryTemplate.Execute(&doc, EntryContent{
 			Date:         e.Date,
 			CreationTime: e.CreationTime,
-			Content:      strings.Replace(string(e.Content), "\n\n", "<br>", -1),
+			Content:      strings.Replace(string(e.Content), "\n", "<br>\n\n", -1),
 			Key:          key.Encode(),
 		})
 	}

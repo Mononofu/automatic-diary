@@ -13,9 +13,17 @@ import (
 	"time"
 )
 
+type AttachmentJSON struct {
+	Content       string
+	ContentLength int
+	ContentType   string
+	Name          string
+}
+
 type MailJSON struct {
-	TextBody string
-	From     string
+	TextBody    string
+	From        string
+	Attachments []AttachmentJSON
 }
 
 func incomingMail(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +43,8 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		c.Errorf("failed to decode mail")
 		return
 	}
+
+	c.Infof("mail attachments: %v", m.Attachments)
 
 	rawBody := strings.Replace(m.TextBody, "*", "", -1)
 
@@ -90,6 +100,8 @@ func getMailBody(reply string) (string, error) {
 		// long words can push this to the left
 		if len(line) < 65 { // line break made by the user - keep it!
 			cleanText += "\n"
+		} else { // replace newlines with spaces so words don't stick together
+			cleanText += " "
 		}
 	}
 
