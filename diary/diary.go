@@ -10,11 +10,19 @@ import (
 	"time"
 )
 
+type Attachment struct {
+	Name         string
+	Content      []byte
+	ContentType  string
+	CreationTime time.Time
+}
+
 type DiaryEntry struct {
 	Author       string
 	Content      []byte
 	Date         time.Time
 	CreationTime time.Time
+	Attachments  []*datastore.Key
 }
 
 func init() {

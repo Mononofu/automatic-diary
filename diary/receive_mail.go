@@ -5,6 +5,7 @@ import (
 	"appengine/datastore"
 	"appengine/memcache"
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,8 +45,6 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Infof("mail attachments: %v", m.Attachments)
-
 	rawBody := strings.Replace(m.TextBody, "*", "", -1)
 
 	body, err := getMailBody(rawBody)
@@ -60,12 +59,19 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	attachments, err := storeAttachments(c, m.Attachments)
+	if err != nil {
+		c.Errorf("error while storing attachments: %v", err)
+		return
+	}
+
 	c.Infof("Received mail from %s: %s", m.From, body)
 	e := DiaryEntry{
 		Author:       "Julian",
 		Content:      []byte(body),
 		Date:         date,
 		CreationTime: time.Now(),
+		Attachments:  attachments,
 	}
 
 	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
@@ -133,4 +139,32 @@ func getReminderDate(c appengine.Context, text string) (time.Time, error) {
 	}
 
 	return date, nil
+}
+
+func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*datastore.Key, error) {
+	keys := make([]*datastore.Key, 2, 2)
+
+	for _, rawAttachment := range rawAttachments {
+		bytes, err := base64.StdEncoding.DecodeString(rawAttachment.Content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode attachment '%v':",
+				rawAttachment.Name, err)
+		}
+
+		e := Attachment{
+			Name:         rawAttachment.Name,
+			Content:      bytes,
+			ContentType:  rawAttachment.ContentType,
+			CreationTime: time.Now(),
+		}
+
+		key, err := datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to save to datastore: %s", err)
+		}
+
+		keys = append(keys, key)
+	}
+
+	return keys, nil
 }
