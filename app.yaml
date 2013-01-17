@@ -1,5 +1,5 @@
 application: automatic-diary
-version: 2
+version: 3
 runtime: go
 api_version: go1
 
@@ -7,7 +7,6 @@ handlers:
 - url: /assets
   static_dir: static
 
+# don't put auth here - postmaster needs to be able to deliver mails!
 - url: /.*
   script: _go_app
-  login: admin
-  auth_fail_action: redirect
