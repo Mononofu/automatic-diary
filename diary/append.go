@@ -32,7 +32,7 @@ func appendToEntry(w http.ResponseWriter, r *http.Request) {
 
 	entryAppendTemplate.Execute(&doc, EntryContent{
 		Date:    e.Date,
-		Content: strings.Replace(string(e.Content), "\n\n", "<br>", -1),
+		Content: strings.Replace(string(e.Content), "\n", "<br>\n\n", -1),
 		Key:     rawKey,
 	})
 

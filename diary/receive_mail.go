@@ -77,7 +77,23 @@ func getMailBody(reply string) (string, error) {
 		return "", fmt.Errorf("Failed to parse reply")
 	}
 
-	return reply[0:loc[0]], nil
+	// strip of quote
+	userText := reply[0:loc[0]]
+
+	cleanText := ""
+
+	lines := strings.Split(userText, "\n")
+	for _, line := range lines {
+		cleanText += line
+
+		// arbitrary cutoff - gmail seems to wrap lines at around 75, but occasional
+		// long words can push this to the left
+		if len(line) < 65 { // line break made by the user - keep it!
+			cleanText += "\n"
+		}
+	}
+
+	return cleanText, nil
 }
 
 func getReminderDate(c appengine.Context, text string) (time.Time, error) {

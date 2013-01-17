@@ -36,7 +36,6 @@ func checkReminder(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Fprintf(w, "I already have an entry for today")
 	}
-
 }
 
 func sendReminder(c appengine.Context, date time.Time) {
