@@ -2,6 +2,7 @@ package diary
 
 import (
 	"appengine"
+	"appengine/blobstore"
 	"appengine/datastore"
 	"appengine/user"
 	"bytes"
@@ -12,7 +13,7 @@ import (
 
 type Attachment struct {
 	Name         string
-	Content      []byte
+	Content      appengine.BlobKey
 	ContentType  string
 	CreationTime time.Time
 }
@@ -27,8 +28,13 @@ type DiaryEntry struct {
 
 func init() {
 	http.HandleFunc("/", showEntries)
-	http.HandleFunc("/incoming_mail", incomingMail)
 	http.HandleFunc("/tasks/reminder", checkReminder)
+	http.HandleFunc("/attachment", showAttachment)
+
+	// handler for postmaster
+	http.HandleFunc("/incoming_mail", incomingMail)
+
+	// append to existing entries
 	http.HandleFunc("/append", appendToEntry)
 	http.HandleFunc("/append_submit", appendToEntrySubmit)
 
@@ -66,11 +72,30 @@ func showEntries(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		var attachments bytes.Buffer
+
+		for _, attachmentKey := range e.Attachments {
+
+			if key != nil {
+				var a Attachment
+				err = datastore.Get(c, attachmentKey, &a)
+				if err != nil {
+					c.Errorf("failed to fetch entry for key '%v': %v", attachmentKey, err)
+				} else {
+					attachmentTemplate.Execute(&attachments, AttachmentContent{
+						Name: a.Name,
+						Key:  string(a.Content),
+					})
+				}
+			}
+		}
+
 		entryTemplate.Execute(&doc, EntryContent{
 			Date:         e.Date,
 			CreationTime: e.CreationTime,
 			Content:      strings.Replace(string(e.Content), "\n", "<br>\n\n", -1),
 			Key:          key.Encode(),
+			Attachments:  attachments.String(),
 		})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -104,4 +129,10 @@ func addTestData(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Status", "302")
 	w.Header().Set("Location", "/")
+}
+
+func showAttachment(w http.ResponseWriter, r *http.Request) {
+	args := r.URL.Query()
+	rawKey := args.Get("key")
+	blobstore.Send(w, appengine.BlobKey(rawKey))
 }

@@ -2,6 +2,7 @@ package diary
 
 import (
 	"appengine"
+	"appengine/blobstore"
 	"appengine/datastore"
 	"appengine/memcache"
 	"bytes"
@@ -30,6 +31,7 @@ type MailJSON struct {
 func incomingMail(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	defer r.Body.Close()
+
 	var b bytes.Buffer
 	if _, err := b.ReadFrom(r.Body); err != nil {
 		c.Errorf("Error reading body: %v", err)
@@ -41,7 +43,7 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(b.Bytes(), &m)
 
 	if err != nil {
-		c.Errorf("failed to decode mail")
+		c.Errorf("failed to decode mail: %v\n%v", err, string(b.Bytes()))
 		return
 	}
 
@@ -52,6 +54,8 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		c.Errorf("error while parsing reply: %v", err)
 		return
 	}
+
+	c.Infof("Received mail from %s: %s", m.From, body)
 
 	date, err := getReminderDate(c, rawBody)
 	if err != nil {
@@ -65,7 +69,6 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Infof("Received mail from %s: %s", m.From, body)
 	e := DiaryEntry{
 		Author:       "Julian",
 		Content:      []byte(body),
@@ -142,7 +145,7 @@ func getReminderDate(c appengine.Context, text string) (time.Time, error) {
 }
 
 func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*datastore.Key, error) {
-	keys := make([]*datastore.Key, 2, 2)
+	keys := []*datastore.Key{}
 
 	for _, rawAttachment := range rawAttachments {
 		bytes, err := base64.StdEncoding.DecodeString(rawAttachment.Content)
@@ -151,14 +154,32 @@ func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*
 				rawAttachment.Name, err)
 		}
 
+		w, err := blobstore.Create(c, rawAttachment.ContentType)
+		if err != nil {
+			return nil, err
+		}
+		_, err = w.Write(bytes)
+		if err != nil {
+			return nil, err
+		}
+		err = w.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		blobKey, err := w.Key()
+		if err != nil {
+			return nil, err
+		}
+
 		e := Attachment{
 			Name:         rawAttachment.Name,
-			Content:      bytes,
+			Content:      blobKey,
 			ContentType:  rawAttachment.ContentType,
 			CreationTime: time.Now(),
 		}
 
-		key, err := datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
+		key, err := datastore.Put(c, datastore.NewIncompleteKey(c, "Attachment", nil), &e)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to save to datastore: %s", err)
 		}

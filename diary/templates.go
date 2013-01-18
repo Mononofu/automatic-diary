@@ -24,6 +24,7 @@ const baseTemplateHTML = `
         <div class="masthead">
         <ul class="nav nav-pills pull-right">
              <li class="active"><a href="/">Diary Entries</a></li>
+             <li><a href="/tasks/reminder">Attachments</a></li>
              <li><a href="/tasks/reminder">Test Reminder</a></li>
              <li><a href="/add_test_data">Test Data</a></li>
              <li><a href="/_ah/admin/" target="_blank">Admin</a></li>
@@ -46,6 +47,7 @@ const entryTemplateHTML = `
 <div class="entry">
     <h3>{{.Date.Format "Monday, 2. Jan"}}</h3>
     <p>{{.Content}}</p>
+    <span>{{.Attachments}}</span>
     <span><i>Written on {{.CreationTime.Format "Monday, 2. Jan - 15:04"}}</i></span>
     <span class="append_link"><a href="/append?key={{.Key | urlquery }}">Append</a></span>
 </div>
@@ -69,8 +71,19 @@ type EntryContent struct {
 	CreationTime time.Time
 	Content      string
 	Key          string
+	Attachments  string
+}
+
+const attachmentTemplateHTML = `
+<span><a href="/attachment?key={{.Key | urlquery }}">{{.Name}}</a></span>
+`
+
+type AttachmentContent struct {
+	Name string
+	Key  string
 }
 
 var baseTemplate = template.Must(template.New("body").Parse(baseTemplateHTML))
 var entryTemplate = template.Must(template.New("entry").Parse(entryTemplateHTML))
 var entryAppendTemplate = template.Must(template.New("entryAppend").Parse(entryAppendTemplateHTML))
+var attachmentTemplate = template.Must(template.New("attachment").Parse(attachmentTemplateHTML))
