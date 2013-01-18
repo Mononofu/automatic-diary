@@ -17,10 +17,9 @@ import (
 )
 
 type AttachmentJSON struct {
-	Content       string
-	ContentLength int
-	ContentType   string
-	Name          string
+	Content     string
+	ContentType string
+	Name        string
 }
 
 type MailJSON struct {
@@ -221,8 +220,65 @@ func testMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := b.String()
+	mail := b.String()
 
-	c.Infof("received email: %v", body)
+	c.Infof("Received mail: %v", mail)
+
+	parsedMail, err := parse_mail(mail)
+	if err != nil {
+		c.Errorf("Failed while parsing mail: %v", err)
+		return
+	}
+
+	rawBody := strings.Replace(parsedMail.Plaintext, "*", "", -1)
+
+	cleanBody, err := getMailBody(rawBody)
+	if err != nil {
+		c.Errorf("error while parsing reply: %v", err)
+		return
+	}
+
+	//c.Infof("Received mail from %s: %s", m.From, cleanBody)
+
+	date, err := getReminderDate(c, rawBody)
+	if err != nil {
+		c.Errorf("error while parsing date: %v", err)
+		return
+	}
+
+	attachments, err := storeAttachments(c, parsedMail.Attachments)
+	if err != nil {
+		c.Errorf("error while storing attachments: %v", err)
+		return
+	}
+
+	e := DiaryEntry{
+		Author:       "Julian",
+		Content:      []byte(cleanBody),
+		Date:         date,
+		CreationTime: time.Now(),
+		Attachments:  attachments,
+	}
+
+	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
+	if err != nil {
+		c.Errorf("Failed to save to datastore: %s", err.Error())
+		return
+	}
+
+	//c.Infof("received email: %v", body)
 	c.Infof("at path: %v", r.URL.String())
+}
+
+func FindStringNthSubmatch(s string, regex string, n int) (string, error) {
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		return "", fmt.Errorf("Failed to compile regex: %v", err)
+	}
+
+	submatches := re.FindStringSubmatch(s)
+	if n >= len(submatches) {
+		return "", fmt.Errorf("not enough submatches for '%v' in: %v", regex, s)
+	}
+	return submatches[n], nil
 }
