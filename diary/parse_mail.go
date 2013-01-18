@@ -35,9 +35,9 @@ func parse_mail(mail string) (Mail, error) {
 		if line[0] == ' ' { // continue header from before
 			headers[curHeaderName] += strings.TrimLeft(line, " ")
 		} else { // new header
-			headerNameEnd := strings.Index(line, ":")
-			headerName := line[:headerNameEnd]
-			headerValue := line[headerNameEnd+1:]
+			parts := strings.SplitN(line, ":", 2)
+			headerName := parts[0]
+			headerValue := parts[1]
 
 			headers[headerName] = headerValue
 			curHeaderName = headerName
@@ -150,8 +150,22 @@ func parseAttachment(part string, contentType string) ([]Content, error) {
 }
 
 func parseTextPlain(part string) ([]Content, error) {
-	lineAfterContentType := strings.Index(part, "\n")
-	part = part[lineAfterContentType:]
+	// parse the headers at the beginning
+	for strings.Index(part, ":") > 0 {
+		parts := strings.SplitN(part, "\n", 2)
+		header := parts[0]
+		part = parts[1]
+		// don't use split
+		parts = strings.SplitN(header, ":", 2)
+		headerName := parts[0]
+		headerValue := parts[1]
+
+		if headerName == "Content-Type" && !strings.Contains(headerValue, "text/plain") {
+			return nil, fmt.Errorf("unexpected content type: %v", headerValue)
+		} else if headerName == "Content-Transfer-Encoding" && !strings.Contains(headerValue, "quoted-printable") {
+			return nil, fmt.Errorf("unexpected content encoding: %v", headerValue)
+		}
+	}
 
 	decoder := qprintable.NewDecoder(qprintable.DetectEncoding(part),
 		strings.NewReader(part))

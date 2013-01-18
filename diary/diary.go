@@ -161,6 +161,8 @@ func test_parse(w http.ResponseWriter, r *http.Request) {
 	for _, name := range keys {
 		fmt.Fprintf(w, "%v: %v\n\n", name, mail.Headers[name])
 	}
+
+	fmt.Fprintf(w, "\n\n\n--%v", mail.Plaintext)
 }
 
 const mailtext = `X-Received: by 10.42.39.1 with SMTP id f1mr7654524ice.4.1358539254163; 
@@ -203,10 +205,17 @@ Content-Type: multipart/alternative; boundary=e89a8f23549da6dffb04d395914c
  
 --e89a8f23549da6dffb04d395914c 
 Content-Type: text/plain; charset=UTF-8 
+Content-Transfer-Encoding: quoted-printable 
  
-blubeauo 
- 
-aouaoeu 
+Today, I spent a lot of time thinking about which watch and phone to buy, 
+never being sure if it was actually worth it. Then I went and checked my 
+accounts and realized that I only have about 4.5k right now and that this 
+money needs to last till September. Sure, I get monthly payments from my 
+parents and grandpa, but after rent and stuff only ~240=E2=82=AC are left o= 
+ver. 
+Which I'll probably spend on food alone, especially since SlowCarb / Paleo 
+is expensive (but sure as hell worth it, I feel and look more ripped than 
+ever) 
  
 --e89a8f23549da6dffb04d395914c 
 Content-Type: text/html; charset=UTF-8 
