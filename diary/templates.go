@@ -44,12 +44,12 @@ type BodyContent struct {
 }
 
 const entryTemplateHTML = `
-<div class="entry">
+<div class="entry row">
     <h3>{{.Date.Format "Monday, 2. Jan"}}</h3>
     <p>{{.Content}}</p>
-    <span>{{.Attachments}}</span>
     <span><i>Written on {{.CreationTime.Format "Monday, 2. Jan - 15:04"}}</i></span>
-    <span class="append_link"><a href="/append?key={{.Key | urlquery }}">Append</a></span>
+    <span class="append_link"><a href="/append?key={{.Key | urlquery }}">Append</a></span><br>
+    <div class="attachments">{{.Attachments}}</div>
 </div>
 `
 
@@ -75,9 +75,9 @@ type EntryContent struct {
 }
 
 const attachmentTemplateHTML = `
-<span>
+<span class="span4">
   <a href="/attachment?key={{.Key | urlquery }}">
-    <img src="{{.Thumbnail}}" alt="{{.Name}}">
+    <img src="{{.Thumbnail}}" alt="{{.Name}}" class="img-polaroid">
   </a>
 </span>
 `

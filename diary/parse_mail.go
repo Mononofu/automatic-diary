@@ -151,11 +151,16 @@ func parseAttachment(part string, contentType string) ([]Content, error) {
 
 func parseTextPlain(part string) ([]Content, error) {
 	// parse the headers at the beginning
-	for strings.Index(part, ":") > 0 {
+	for strings.Contains(part, ":") {
 		parts := strings.SplitN(part, "\n", 2)
+
 		header := parts[0]
 		part = parts[1]
-		// don't use split
+
+		if !strings.Contains(header, ":") { // : is in body text
+			break
+		}
+
 		parts = strings.SplitN(header, ":", 2)
 		headerName := parts[0]
 		headerValue := parts[1]
@@ -176,6 +181,8 @@ func parseTextPlain(part string) ([]Content, error) {
 	}
 
 	plaintext := string(decodedBytes)
+
+	plaintext = strings.Trim(plaintext, " \n")
 
 	return []Content{
 		Content{

@@ -35,16 +35,13 @@ func init() {
 	http.HandleFunc("/tasks/reminder", checkReminder)
 	http.HandleFunc("/attachment", showAttachment)
 
-	// handler for postmaster
-	http.HandleFunc("/incoming_mail", incomingMail)
-
 	// append to existing entries
 	http.HandleFunc("/append", appendToEntry)
 	http.HandleFunc("/append_submit", appendToEntrySubmit)
 
 	// exposed for testing
 	http.HandleFunc("/add_test_data", addTestData)
-	http.HandleFunc("/_ah/mail/", testMail)
+	http.HandleFunc("/_ah/mail/", parseMail)
 	http.HandleFunc("/test_parse", test_parse)
 }
 

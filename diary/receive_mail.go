@@ -8,7 +8,6 @@ import (
 	"appengine/memcache"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -22,13 +21,7 @@ type AttachmentJSON struct {
 	Name        string
 }
 
-type MailJSON struct {
-	TextBody    string
-	From        string
-	Attachments []AttachmentJSON
-}
-
-func incomingMail(w http.ResponseWriter, r *http.Request) {
+func parseMail(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	defer r.Body.Close()
 
@@ -38,24 +31,25 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var m MailJSON
+	mail := b.String()
 
-	err := json.Unmarshal(b.Bytes(), &m)
+	c.Debugf("Received mail: %v", mail)
 
+	parsedMail, err := parse_mail(mail)
 	if err != nil {
-		c.Errorf("failed to decode mail: %v\n%v", err, string(b.Bytes()))
+		c.Errorf("Failed while parsing mail: %v", err)
 		return
 	}
 
-	rawBody := strings.Replace(m.TextBody, "*", "", -1)
+	rawBody := strings.Replace(parsedMail.Plaintext, "*", "", -1)
 
-	body, err := getMailBody(rawBody)
+	cleanBody, err := getMailBody(rawBody)
 	if err != nil {
 		c.Errorf("error while parsing reply: %v", err)
 		return
 	}
 
-	c.Infof("Received mail from %s: %s", m.From, body)
+	c.Infof("Received mail from %v: %v", parsedMail.Headers["From"], cleanBody)
 
 	date, err := getReminderDate(c, rawBody)
 	if err != nil {
@@ -63,7 +57,7 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attachments, err := storeAttachments(c, m.Attachments)
+	attachments, err := storeAttachments(c, parsedMail.Attachments)
 	if err != nil {
 		c.Errorf("error while storing attachments: %v", err)
 		return
@@ -71,7 +65,7 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 
 	e := DiaryEntry{
 		Author:       "Julian",
-		Content:      []byte(body),
+		Content:      []byte(cleanBody),
 		Date:         date,
 		CreationTime: time.Now(),
 		Attachments:  attachments,
@@ -82,6 +76,9 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		c.Errorf("Failed to save to datastore: %s", err.Error())
 		return
 	}
+
+	//c.Infof("received email: %v", body)
+	c.Infof("at path: %v", r.URL.String())
 }
 
 func getMailBody(reply string) (string, error) {
@@ -114,7 +111,7 @@ func getMailBody(reply string) (string, error) {
 		}
 	}
 
-	return cleanText, nil
+	return strings.Trim(cleanText, " \n"), nil
 }
 
 func getReminderDate(c appengine.Context, text string) (time.Time, error) {
@@ -208,66 +205,6 @@ func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*
 	}
 
 	return keys, nil
-}
-
-func testMail(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	defer r.Body.Close()
-
-	var b bytes.Buffer
-	if _, err := b.ReadFrom(r.Body); err != nil {
-		c.Errorf("Error reading body: %v", err)
-		return
-	}
-
-	mail := b.String()
-
-	c.Infof("Received mail: %v", mail)
-
-	parsedMail, err := parse_mail(mail)
-	if err != nil {
-		c.Errorf("Failed while parsing mail: %v", err)
-		return
-	}
-
-	rawBody := strings.Replace(parsedMail.Plaintext, "*", "", -1)
-
-	cleanBody, err := getMailBody(rawBody)
-	if err != nil {
-		c.Errorf("error while parsing reply: %v", err)
-		return
-	}
-
-	//c.Infof("Received mail from %s: %s", m.From, cleanBody)
-
-	date, err := getReminderDate(c, rawBody)
-	if err != nil {
-		c.Errorf("error while parsing date: %v", err)
-		return
-	}
-
-	attachments, err := storeAttachments(c, parsedMail.Attachments)
-	if err != nil {
-		c.Errorf("error while storing attachments: %v", err)
-		return
-	}
-
-	e := DiaryEntry{
-		Author:       "Julian",
-		Content:      []byte(cleanBody),
-		Date:         date,
-		CreationTime: time.Now(),
-		Attachments:  attachments,
-	}
-
-	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
-	if err != nil {
-		c.Errorf("Failed to save to datastore: %s", err.Error())
-		return
-	}
-
-	//c.Infof("received email: %v", body)
-	c.Infof("at path: %v", r.URL.String())
 }
 
 func FindStringNthSubmatch(s string, regex string, n int) (string, error) {
