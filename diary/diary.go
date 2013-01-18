@@ -14,6 +14,8 @@ import (
 type Attachment struct {
 	Name         string
 	Content      appengine.BlobKey
+	Thumbnail    string
+	BigImage     string
 	ContentType  string
 	CreationTime time.Time
 }
@@ -40,6 +42,7 @@ func init() {
 
 	// exposed for testing
 	http.HandleFunc("/add_test_data", addTestData)
+	http.HandleFunc("/_ah/mail/", testMail)
 }
 
 func showEntries(w http.ResponseWriter, r *http.Request) {
@@ -83,8 +86,9 @@ func showEntries(w http.ResponseWriter, r *http.Request) {
 					c.Errorf("failed to fetch entry for key '%v': %v", attachmentKey, err)
 				} else {
 					attachmentTemplate.Execute(&attachments, AttachmentContent{
-						Name: a.Name,
-						Key:  string(a.Content),
+						Name:      a.Name,
+						Thumbnail: a.Thumbnail,
+						Key:       string(a.Content),
 					})
 				}
 			}

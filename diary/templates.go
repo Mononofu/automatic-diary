@@ -75,12 +75,17 @@ type EntryContent struct {
 }
 
 const attachmentTemplateHTML = `
-<span><a href="/attachment?key={{.Key | urlquery }}">{{.Name}}</a></span>
+<span>
+  <a href="/attachment?key={{.Key | urlquery }}">
+    <img src="{{.Thumbnail}}" alt="{{.Name}}">
+  </a>
+</span>
 `
 
 type AttachmentContent struct {
-	Name string
-	Key  string
+	Name      string
+	Key       string
+	Thumbnail string
 }
 
 var baseTemplate = template.Must(template.New("body").Parse(baseTemplateHTML))

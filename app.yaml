@@ -3,6 +3,9 @@ version: 3
 runtime: go
 api_version: go1
 
+inbound_services:
+- mail
+
 handlers:
 - url: /favicon.ico
   static_files: static/images/favicon.ico

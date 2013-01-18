@@ -4,6 +4,7 @@ import (
 	"appengine"
 	"appengine/blobstore"
 	"appengine/datastore"
+	"appengine/image"
 	"appengine/memcache"
 	"bytes"
 	"encoding/base64"
@@ -156,20 +157,38 @@ func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*
 
 		w, err := blobstore.Create(c, rawAttachment.ContentType)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create blobstore entry: %v", err)
 		}
 		_, err = w.Write(bytes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to write to blobstore: %v", err)
 		}
 		err = w.Close()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to close blobstore entry: %v", err)
 		}
 
 		blobKey, err := w.Key()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get key for blobstore entry: %v", err)
+		}
+
+		thumbnailURL, err := image.ServingURL(c, blobKey, &image.ServingURLOptions{
+			Secure: true,
+			Size:   400,
+			Crop:   false,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create thumbnail: %v", err)
+		}
+
+		bigImageURL, err := image.ServingURL(c, blobKey, &image.ServingURLOptions{
+			Secure: true,
+			Size:   1600,
+			Crop:   false,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create big image: %v", err)
 		}
 
 		e := Attachment{
@@ -177,6 +196,8 @@ func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*
 			Content:      blobKey,
 			ContentType:  rawAttachment.ContentType,
 			CreationTime: time.Now(),
+			Thumbnail:    thumbnailURL.String(),
+			BigImage:     bigImageURL.String(),
 		}
 
 		key, err := datastore.Put(c, datastore.NewIncompleteKey(c, "Attachment", nil), &e)
@@ -188,4 +209,20 @@ func storeAttachments(c appengine.Context, rawAttachments []AttachmentJSON) ([]*
 	}
 
 	return keys, nil
+}
+
+func testMail(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	defer r.Body.Close()
+
+	var b bytes.Buffer
+	if _, err := b.ReadFrom(r.Body); err != nil {
+		c.Errorf("Error reading body: %v", err)
+		return
+	}
+
+	body := b.String()
+
+	c.Infof("received email: %v", body)
+	c.Infof("at path: %v", r.URL.String())
 }
