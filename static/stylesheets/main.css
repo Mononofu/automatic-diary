@@ -52,3 +52,7 @@ body {
 textarea {
   width: 100%;
 }
+
+.attachments {
+  margin-top: 20px
+}

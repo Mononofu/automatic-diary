@@ -8,6 +8,7 @@ import (
 	"appengine/memcache"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -19,6 +20,68 @@ type AttachmentJSON struct {
 	Content     string
 	ContentType string
 	Name        string
+}
+
+type MailJSON struct {
+	TextBody    string
+	From        string
+	Attachments []AttachmentJSON
+}
+
+func incomingMail(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	defer r.Body.Close()
+
+	var b bytes.Buffer
+	if _, err := b.ReadFrom(r.Body); err != nil {
+		c.Errorf("Error reading body: %v", err)
+		return
+	}
+
+	var m MailJSON
+
+	err := json.Unmarshal(b.Bytes(), &m)
+
+	if err != nil {
+		c.Errorf("failed to decode mail: %v\n%v", err, string(b.Bytes()))
+		return
+	}
+
+	rawBody := strings.Replace(m.TextBody, "*", "", -1)
+
+	body, err := getMailBody(rawBody)
+	if err != nil {
+		c.Errorf("error while parsing reply: %v", err)
+		return
+	}
+
+	c.Infof("Received mail from %s: %s", m.From, body)
+
+	date, err := getReminderDate(c, rawBody)
+	if err != nil {
+		c.Errorf("error while parsing date: %v", err)
+		return
+	}
+
+	attachments, err := storeAttachments(c, m.Attachments)
+	if err != nil {
+		c.Errorf("error while storing attachments: %v", err)
+		return
+	}
+
+	e := DiaryEntry{
+		Author:       "Julian",
+		Content:      []byte(body),
+		Date:         date,
+		CreationTime: time.Now(),
+		Attachments:  attachments,
+	}
+
+	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "DiaryEntry", nil), &e)
+	if err != nil {
+		c.Errorf("Failed to save to datastore: %s", err.Error())
+		return
+	}
 }
 
 func parseMail(w http.ResponseWriter, r *http.Request) {
